@@ -29,6 +29,18 @@ services:
     networks:
       - facialapp
 
+  camera:
+    build:
+      context: ./camera
+      dockerfile: Dockerfile
+    devices:
+        - /dev/video0:/dev/video0
+    volumes:
+      - ./camera/src:/usr/src/app
+    command: ["python3", "-u", "main.py"]
+    networks:
+      - facialapp
+
 networks:
   facialapp:
     driver: bridge
