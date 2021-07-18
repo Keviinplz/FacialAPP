@@ -1,60 +1,36 @@
-import base64
-import random
-import asyncio
-import datetime
 import json
+import base64
+from aiohttp import web
 
 import cv2
-import websockets
+import socketio
 
 cap = cv2.VideoCapture(0)
+sio = socketio.AsyncServer()
+app = web.Application()
+sio.attach(app)
 
-async def hello(ws, path):
-  while True:
-    if not cap.isOpened():
-      print("[DEBUG] La cámara no está operativa.")
-      break
+@sio.event
+async def connect(sid, environ):
+  print("[DEBUG] Connected:", sid)
 
+@sio.event
+async def get_image(sid):
+  while cap.isOpened():
     ret, frame = cap.read()
-    if ret == False:
-      print("[DEBUG] No se ha podido obtener una imagen.")
+    if not ret:
+      print(
+        "[DEBUG] Failed to get camera image, retrying..."
+      )
       continue
     ret, buffer = cv2.imencode('.jpg', frame)
     encoded = base64.b64encode(buffer).decode()
-    data = json.dumps({ 'image': encoded })
-    await ws.send(data)
+    data = json.dumps({ 'client': sid, 'image': encoded })
+    await sio.emit('image-response', data)
 
-# Productor
-  # Productor
-  # 1er thread
-  # opencv -> leer imagenes
-  # tomar la imagen y moverla a un buffer
+@sio.event
+async def disconnect(sid):
+  print("[DEBUG] Disconnected:", sid)
 
-  # Consumidor
-  # 2do thread
-  # verifica si hay imagenes en el buffer
-  # y si los hay, los manda por el socket
-
-# Consumidor del Detector Facial
-  # Productor
-  # 1er thread
-  # conectar con el ws, y va a alimentar un buffer
-
-  # 2do thread
-  # tomar imagenes del buffer, y los va a procesar
-  # con yolov5
-
-# Consumidor Aplicación Web
-  # Productor
-  # 1er thread
-  # conectar con el ws, y va a alimentar un buffer
-
-  # Consumidor
-  # 2do thread
-  # tomar imagenes del buffer, y los mostrará en la
-  # pagina web
-
-
-server = websockets.serve(hello, "0.0.0.0", 5000)
-asyncio.get_event_loop().run_until_complete(server)
-asyncio.get_event_loop().run_forever()
+if __name__ == '__main__':
+  web.run_app(app, host='0.0.0.0', port=5000)

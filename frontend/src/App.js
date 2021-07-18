@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { w3cwebsocket as WebSocket } from 'websocket';
+import socketIOClient from "socket.io-client";
 import './App.css';
 
 function App() {
+  const [wsResponse, setWsResponse] = useState(false);
+  const [imgString, setImgString] = useState("#");
   const [response, setResponse] = useState([]);
   const [loading, setLoading] = useState(true);
   const url = '/api';
-  const client = new WebSocket('ws://192.168.1.98/socketjs-node');
+
 
   const getData = async () => {
     setLoading(true);
-    const data  = await axios.get(url)
+    const data = await axios.get(url)
       .then(response => JSON.stringify(response.data))
       .catch((e) => JSON.stringify(e.message))
     setLoading(false);
@@ -19,18 +21,22 @@ function App() {
 
   }
 
-  // Connecting to images websocket
   useEffect(() => {
-    client.onopen = () => {
-      console.log("Connected to websocket images");
-    }
+    const socket = socketIOClient("http://192.168.1.98");
+
+    socket.on("connect", (data) => {
+      setWsResponse(true);
+      socket.emit('get_image');
+    });
+
+    socket.on("image-response", data => {
+      setImgString(JSON.parse(data).image);
+    })
   }, [])
 
-  useEffect(() => {
-    client.onmessage = (message) => {
-      console.log(message);
-    }
-  })
+
+
+
 
   useEffect(() => {
     getData();
@@ -44,11 +50,11 @@ function App() {
 
   return (
     <div>
-      <div>{loading ? "Obteniendo datos cada 5 segundos..." : "Estado del servidor backend:"}</div>
+      <div>{loading ? "Reconnecting to backend..." : "Connected to backend:"}</div>
       <div>{response}</div>
-      <div>Imagenes del websocket:</div>
+      <div>{wsResponse ? "Camera Images:" : "Connecting to camera..."}</div>
       <div>
-        <img src="#" alt="testing"></img>
+        <img src={"data:image/jpg;base64," + imgString} alt="testing"></img>
       </div>
     </div>
   );

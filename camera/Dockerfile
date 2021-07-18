@@ -17,6 +17,6 @@ RUN python3 -m pip install --upgrade pip
 COPY requirements.txt .
 RUN python3 -m pip install -r requirements.txt
 
-COPY src/* .
+RUN python3 -m pip install python-socketio aiohttp
 
 EXPOSE 5000
