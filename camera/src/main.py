@@ -1,36 +1,27 @@
-import json
 import base64
-from aiohttp import web
+import asyncio
 
 import cv2
-import socketio
+import websockets
 
 cap = cv2.VideoCapture(0)
-sio = socketio.AsyncServer()
-app = web.Application()
-sio.attach(app)
 
-@sio.event
-async def connect(sid, environ):
-  print("[DEBUG] Connected:", sid)
+async def hello(ws, path):
+  while True:
+    if not cap.isOpened():
+      break
 
-@sio.event
-async def get_image(sid):
-  while cap.isOpened():
     ret, frame = cap.read()
-    if not ret:
-      print(
-        "[DEBUG] Failed to get camera image, retrying..."
-      )
+    if ret == False:
+      print("[DEBUG] No se ha podido obtener una imagen.")
       continue
     ret, buffer = cv2.imencode('.jpg', frame)
     encoded = base64.b64encode(buffer).decode()
-    data = json.dumps({ 'client': sid, 'image': encoded })
-    await sio.emit('image-response', data)
+    await ws.send(encoded)
+    await asyncio.sleep(0.03)
 
-@sio.event
-async def disconnect(sid):
-  print("[DEBUG] Disconnected:", sid)
+server = websockets.serve(hello, "0.0.0.0", 5000)
+asyncio.get_event_loop().run_until_complete(server)
+asyncio.get_event_loop().run_forever()
 
-if __name__ == '__main__':
-  web.run_app(app, host='0.0.0.0', port=5000)
+# TODO: Create a productor consumer to avoid saturation in websocket.
